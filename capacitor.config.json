@@ -1,0 +1,14 @@
+{
+  "appId": "com.fsfx.derinsessizlik",
+  "appName": "HADAL",
+  "webDir": "www",
+  "backgroundColor": "#03080d",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#03080d",
+    "scrollEnabled": false
+  },
+  "android": {
+    "backgroundColor": "#03080d"
+  }
+}
