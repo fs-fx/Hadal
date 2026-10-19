@@ -1738,9 +1738,9 @@ function hud(){
    @capacitor-community/admob ve cordova-plugin-purchase (CdvPurchase) kullanılır.
    Gerçek kimlikleri aşağıdaki MONET_CFG içinde değiştir. */
 const MONET_CFG={
-  // testing:true iken gerçek kimliklerle bile Google TEST reklamları gelir (TestFlight için güvenli). Mağaza sürümünde false yapılacak.
+  // CANLI reklam (testing:false). Kendi cihazını AdMob > Ayarlar > Test cihazları'na ekle; kendi reklamına tıklama.
   admob:{ios:'ca-app-pub-7104378593825731/2572206834',iosInter:'ca-app-pub-7104378593825731/4404163255',
-         android:'ca-app-pub-3940256099942544/5224354917',androidInter:'ca-app-pub-3940256099942544/1033173712',testing:true},
+         android:'ca-app-pub-3940256099942544/5224354917',androidInter:'ca-app-pub-3940256099942544/1033173712',testing:false},
   inter:{everyRuns:2,minGapMs:150000,skipFirstRuns:2},
   products:{captain:'hadal_captain_pack',skins1:'hadal_deep_finish_pack'},
   garageDaily:3
@@ -1797,7 +1797,7 @@ const Monet=(()=>{
     return Object.keys(MONET_CFG.products).filter(owned);}
   function canAd(){return owned('captain')||(adReady&&navigator.onLine!==false);}
   function price(k){return prices[k]||(native?'…':'TEST');}
-  return{init,rewarded,inter,purchase,restore,canAd,owned,price,native,get mode(){return native?'native':'test'}};
+  return{init,rewarded,inter,purchase,restore,canAd,owned,price,native,get mode(){return native?'native':'test'},get iap(){return !native||!!store}};
 })();
 function toastAny(m){if(state==='play'){toast(m,'good');return;}let e=$('mtoast');if(!e){e=document.createElement('div');e.id='mtoast';document.body.appendChild(e);}e.textContent=m;e.className='on';clearTimeout(toastAny.t);toastAny.t=setTimeout(()=>e.className='',2200);}
 {let mi=0;const mInit=()=>{if(mi++)return;Monet.init();};document.addEventListener('deviceready',mInit);if(!Monet.native)mInit();else setTimeout(mInit,700);}
@@ -1908,13 +1908,13 @@ const GO={
     if(tab==='cos'){const sk=stats().key,simg=ASSETS[SUBS[sk].img]||'';
       const prod=k=>{const o=Monet.owned(k);return`<div class="item prod${o?' own':''}"><div style="display:flex;gap:10px;align-items:center"><img src="${ASSETS[PRODUCTS[k].icon]||''}" alt="" style="width:46px;height:46px;object-fit:contain"><b>${PRODUCTS[k].name}</b></div><small>${PRODUCTS[k].desc}</small>
         ${o?'<button class="b" disabled>SAHİPSİN</button>':`<button class="b p" data-go="buy" data-arg="${k}">SATIN AL · ${Monet.price(k)}</button>`}</div>`;};
-      const grp=(t,title)=>`<h2>${title}</h2><div class="cosg">${COS.filter(c=>c.t===t).map(c=>{const own=cosOwned(c),sel=cosSel(t).id===c.id;
+      const grp=(t,title)=>`<h2>${title}</h2><div class="cosg">${COS.filter(c=>c.t===t&&(Monet.iap||!c.iap||cosOwned(c))).map(c=>{const own=cosOwned(c),sel=cosSel(t).id===c.id;
         const prev=t==='hull'?`<img src="${simg}" alt="" style="filter:${cosFilter(c)}">`:`<i class="sw ${t}" style="--c:${c.v||COL.s}"></i>`;
         const tag=sel?'<em class="on">SEÇİLİ</em>':own?'<em>SEÇ</em>':c.cost?`<em class="pr${canPay(c.cost)?'':' no'}">${c.cost.s} hurda${c.cost.d?' · '+c.cost.d+' veri':''}</em>`:`<em class="iap">${PRODUCTS[c.iap].name}</em>`;
         return`<button class="cos${sel?' sel':''}${own?'':' lock'}" data-go="cosPick" data-arg="${c.id}" ${!own&&c.cost&&!canPay(c.cost)?'disabled':''}>${prev}<b>${c.name}</b>${tag}</button>`}).join('')}</div>`;
       body=`<p class="sub" style="font-size:13px">Görünümler yalnızca süs: hız, ses, far menzili ve görünürlük değişmez.${Monet.mode==='test'?' <span style="color:var(--amber)">Test modu: satın almalar gerçek değil.</span>':''}</p>
-        <div class="grid2">${prod('captain')}${prod('skins1')}</div>${grp('hull','Gövde kaplaması')}${grp('lamp','Far rengi')}${grp('sonar','Sonar rengi')}
-        <div class="btns"><button class="b" data-go="restore" data-arg="cos">SATIN ALIMLARI GERİ YÜKLE</button></div>`;}
+        ${Monet.iap?`<div class="grid2">${prod('captain')}${prod('skins1')}</div>`:''}${grp('hull','Gövde kaplaması')}${grp('lamp','Far rengi')}${grp('sonar','Sonar rengi')}
+        ${Monet.iap?'<div class="btns"><button class="b" data-go="restore" data-arg="cos">SATIN ALIMLARI GERİ YÜKLE</button></div>':''}`;}
     if(tab==='inv')body=`<p class="sub" style="font-size:13px">Parçalar haritalardaki PARÇA sandıklarından ve etkisiz bıraktığın denizaltıların enkazından çıkar. Her harita farklı parçalar verir; nadir parçalar yalnızca derin ve tehlikeli haritalarda bulunur.</p>
       <div style="display:grid;gap:8px">${Object.entries(PARTS).map(([k,p])=>`<div class="item upg" style="grid-template-columns:40px 1fr auto"><img src="${ASSETS[p.icon]||''}" alt="" style="width:40px;height:40px;object-fit:contain"><div><b>${p.name}</b>${p.rare?' <small style="color:var(--amber)">NADİR</small>':''}<br><small>${Object.keys(MAP_LOOT).filter(id=>MAP_LOOT[id].includes(k)).map(mapName).join(', ')}</small></div><b style="font-family:var(--f-display);font-size:18px">×${save.parts[k]||0}</b></div>`).join('')}</div>`;
     if(tab==='bdg')body=`<div class="badges">${BADGES.map(b=>`<div class="badge ${save.badges[b.id]?'yes':'no'}"><img src="${ASSETS[b.img]||''}" alt=""><b>${b.name}</b>${b.desc}</div>`).join('')}</div><p class="sub" style="font-size:13px">Her başarım bir kez 30 hurda ve 1 veri kazandırır.</p>`;
@@ -1941,7 +1941,7 @@ const GO={
       ${back==='menu'?seg('diff','Zorluk (ödüller de değişir)',[[0,'Kolay'],[1,'Normal'],[2,'Zor']]):''}
       ${seg('joy','Joystick',[['dyn','Dokunduğun yerde'],['fix','Sol altta sabit']])}
       ${seg('bs','Düğme boyutu',[[1,'Normal'],[1.2,'Büyük']])}
-      <div class="btns"><button class="b p" data-go="${back==='pause'?'pauseMenu':'menu'}">GERİ</button>${back==='menu'?'<button class="b" data-go="restore" data-arg="menu">SATIN ALIMLARI GERİ YÜKLE</button><button class="b" data-go="replayTut">EĞİTİMİ TEKRAR OYNA</button><button class="b r" data-go="reset">İLERLEMEYİ SİL</button>':''}</div></div>`);
+      <div class="btns"><button class="b p" data-go="${back==='pause'?'pauseMenu':'menu'}">GERİ</button>${back==='menu'&&Monet.iap?'<button class="b" data-go="restore" data-arg="menu">SATIN ALIMLARI GERİ YÜKLE</button><button class="b" data-go="replayTut">EĞİTİMİ TEKRAR OYNA</button><button class="b r" data-go="reset">İLERLEMEYİ SİL</button>':''}</div></div>`);
     if(back==='pause')state='play';},
   toggle(a){const[id,back]=a.split('|');save.set[id]=save.set[id]?0:1;store();if(id==='hq')resize();if(id==='cb')applySettings();if(id==='sound'&&save.set.sound)SFX.pick();GO.settings(back)},
   setv(a){const[k,v,back]=a.split('|');save.set[k]=(k==='joy'||k==='lang')?v:+v;store();if(k==='lang')setLang(v);applySettings();GO.settings(back)},
