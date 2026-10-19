@@ -20,7 +20,12 @@ workflows:
           npx cap add ios
           sed -i '' "s/platform :ios, '[0-9.]*'/platform :ios, '15.0'/" ios/App/Podfile
           sed -i '' 's/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*;/IPHONEOS_DEPLOYMENT_TARGET = 15.0;/g' ios/App/App.xcodeproj/project.pbxproj
+          # AdMob eklentisi (Capacitor 6) UMP 2.x adlarini kullaniyor; 3.x ile derlenmiyor -> 2.x'e sabitle
+          perl -0pi -e "s/(target 'App' do\n)/\$1  pod 'GoogleUserMessagingPlatform', '~> 2.1'\n/" ios/App/Podfile
+          grep -n "GoogleUserMessagingPlatform" ios/App/Podfile
+          rm -f ios/App/Podfile.lock
           npx cap sync ios
+          grep -A1 "GoogleUserMessagingPlatform" ios/App/Podfile.lock | head -3
       - name: Ikon, acilis ekrani, ayarlar
         script: |
           A=ios/App/App/Assets.xcassets
