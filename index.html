@@ -1738,7 +1738,10 @@ function hud(){
    @capacitor-community/admob ve cordova-plugin-purchase (CdvPurchase) kullanılır.
    Gerçek kimlikleri aşağıdaki MONET_CFG içinde değiştir. */
 const MONET_CFG={
-  admob:{android:'ca-app-pub-3940256099942544/5224354917',ios:'ca-app-pub-3940256099942544/1712485313',testing:true}, // Google'ın test kimlikleri
+  // testing:true iken gerçek kimliklerle bile Google TEST reklamları gelir (TestFlight için güvenli). Mağaza sürümünde false yapılacak.
+  admob:{ios:'ca-app-pub-7104378593825731/2572206834',iosInter:'ca-app-pub-7104378593825731/4404163255',
+         android:'ca-app-pub-3940256099942544/5224354917',androidInter:'ca-app-pub-3940256099942544/1033173712',testing:true},
+  inter:{everyRuns:2,minGapMs:150000,skipFirstRuns:2},
   products:{captain:'hadal_captain_pack',skins1:'hadal_deep_finish_pack'},
   garageDaily:3
 };
@@ -1776,7 +1779,12 @@ const Monet=(()=>{
     try{if(native&&AdMob){const id=plat==='ios'?MONET_CFG.admob.ios:MONET_CFG.admob.android;await AdMob.prepareRewardVideoAd({adId:id,isTesting:MONET_CFG.admob.testing});
         const r=await AdMob.showRewardVideoAd();ok=!!(r&&(r.amount!==undefined||r.type));}
       else ok=await testAd(place);}catch(e){console.warn('ad',e);ok=false;}
-    busy=false;mute(false);if(!ok)toastAny('Reklam tamamlanmadı, ödül verilmedi');return ok;}
+    busy=false;mute(false);lastAd=Date.now();if(!ok)toastAny('Reklam tamamlanmadı, ödül verilmedi');return ok;}
+  let lastAd=0,runs=0,sinceAd=0;
+  function interDue(){const I=MONET_CFG.inter;return native&&AdMob&&adReady&&!owned('captain')&&!owned('skins1')&&navigator.onLine!==false&&runs>I.skipFirstRuns&&sinceAd>=I.everyRuns&&Date.now()-lastAd>I.minGapMs;}
+  async function inter(){runs++;sinceAd++;if(!interDue()||busy)return false;busy=true;mute(true);let ok=false;
+    try{const id=plat==='ios'?MONET_CFG.admob.iosInter:MONET_CFG.admob.androidInter;await AdMob.prepareInterstitial({adId:id,isTesting:MONET_CFG.admob.testing});await AdMob.showInterstitial();ok=true;}catch(e){console.warn('inter',e);}
+    busy=false;mute(false);if(ok){lastAd=Date.now();sinceAd=0;}return ok;}
   function testBuy(k){return new Promise(res=>{const d=document.createElement('div');d.id='adov';
     d.innerHTML=`<div class="adbox"><small>TEST MODU · SATIN ALMA</small><b>${PRODUCTS[k].name}</b><p>${PRODUCTS[k].desc}</p><p style="font-size:12px;color:var(--muted)">Gerçek uygulamada Google Play / App Store ödeme penceresi açılır.</p><div class="btns" style="justify-content:center"><button class="b p" id="by">TEST OLARAK SATIN AL</button><button class="b" id="bn">VAZGEÇ</button></div></div>`;
     document.body.appendChild(d);d.querySelector('#by').onclick=()=>{d.remove();res(true)};d.querySelector('#bn').onclick=()=>{d.remove();res(false)};});}
@@ -1789,10 +1797,10 @@ const Monet=(()=>{
     return Object.keys(MONET_CFG.products).filter(owned);}
   function canAd(){return owned('captain')||(adReady&&navigator.onLine!==false);}
   function price(k){return prices[k]||(native?'…':'TEST');}
-  return{init,rewarded,purchase,restore,canAd,owned,price,native,get mode(){return native?'native':'test'}};
+  return{init,rewarded,inter,purchase,restore,canAd,owned,price,native,get mode(){return native?'native':'test'}};
 })();
 function toastAny(m){if(state==='play'){toast(m,'good');return;}let e=$('mtoast');if(!e){e=document.createElement('div');e.id='mtoast';document.body.appendChild(e);}e.textContent=m;e.className='on';clearTimeout(toastAny.t);toastAny.t=setTimeout(()=>e.className='',2200);}
-document.addEventListener('deviceready',()=>Monet.init());if(!Monet.native)Monet.init();
+{let mi=0;const mInit=()=>{if(mi++)return;Monet.init();};document.addEventListener('deviceready',mInit);if(!Monet.native)mInit();else setTimeout(mInit,700);}
 addEventListener('online',()=>{if(state==='menu'&&window._gtab&&ov.querySelector('.tabs'))GO.garage(window._gtab)});
 
 /* ================= KOZMETİK ================= */
@@ -1959,7 +1967,7 @@ const GO={
   restore(back){Monet.restore().then(l=>{toastAny(l.length?'Geri yüklendi: '+l.map(k=>PRODUCTS[k].name).join(', '):'Geri yüklenecek satın alma bulunamadı');if(back==='cos')GO.garage('cos');else GO.settings(back||'menu');});},
   quit(){state='menu';paused=false;ambStop();setupAttract();GO.maps()}
 };
-function startGame(i,opt){ATT=null;newGame(i,opt);state='play';paused=false;ov.hidden=true;document.body.classList.add('playing');toastEl.className='';hudCache={};last=performance.now();
+let _sgBusy=false,_sgPass=false;function startGame(i,opt){if(_sgBusy)return;if(Monet.native&&!_sgPass){_sgBusy=true;Monet.inter().finally(()=>{_sgBusy=false;_sgPass=true;try{startGame(i,opt);}finally{_sgPass=false;}});return;}ATT=null;newGame(i,opt);state='play';paused=false;ov.hidden=true;document.body.classList.add('playing');toastEl.className='';hudCache={};last=performance.now();
   setBg(bA,abBtn(st.key));showTut();ambStart();document.body.classList.toggle('deep',!!MAP.deep);document.body.classList.toggle('gear',!!MAP.gear);bL._k='';$('logp').hidden=true;
   toast(run.daily?`Günlük dalış · ${run.daily.mod.name}`:MAPS[i].name,'good');}
 function pause(){if(state!=='play')return;paused=true;joy=null;boostBtn=false;ambStop();
